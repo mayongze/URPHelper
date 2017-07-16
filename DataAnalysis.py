@@ -129,7 +129,7 @@ def flunkMajorStatistics(majorKey):
 
 if __name__ == '__main__':
 
-    dbHepler = DBHelper.Sqlite3Helper('demodatabase.db')
+    dbHepler = DBHelper.Sqlite3Helper('database\demodatabase.db')
     dbHepler.open(check_same_thread=False)
     flunk_pie('高等数学(一)B',None)
     flunkCourseRank_barh()

@@ -6,7 +6,7 @@
 # @Version : 1.1.1.20170705
 
 import sqlite3
-
+import os
 
 class Sqlite3Helper(object):
     """docstring for DBHelper"""
@@ -24,9 +24,113 @@ class Sqlite3Helper(object):
         """
         打开数据库并设置游标
         """
+        dir = os.path.dirname(self.file_name)
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
         self.conn = sqlite3.connect(self.file_name,check_same_thread=check_same_thread)
         self.cursor = self.conn.cursor()
+        self.creatTable()
         return self
+
+    def creatTable(self):
+        """
+        创建数据库表
+        """
+        course = '''
+                    CREATE TABLE "course" (
+                    "c_no"  TEXT NOT NULL,
+                    "c_name"  TEXT,
+                    "c_credit"  TEXT,
+                    "c_property"  TEXT,
+                    "c_highest_score"  TEXT,
+                    "c_lowest_score"  TEXT,
+                    "c_average_score"  TEXT,
+                    PRIMARY KEY ("c_no")
+                    );
+                '''
+        course_time = '''
+                    CREATE TABLE "course_time" (
+                    "id"  INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 1,
+                    "weekfrom"  INTEGER,
+                    "weekto"  INTEGER,
+                    "stopfrom"  INTEGER,
+                    "stopto"  INTEGER,
+                    "weektype"  INTEGER,
+                    "day"  INTEGER,
+                    "lesson"  INTEGER,
+                    "courseid"  TEXT,
+                    "num"  TEXT,
+                    "teacher"  TEXT,
+                    "campus"  TEXT,
+                    "bld"  TEXT,
+                    "place"  TEXT
+                    );
+                '''
+        elective = '''
+                    CREATE TABLE "elective" (
+                    "id"  INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 0,
+                    "semester"  TEXT,
+                    "s_no"  INTEGER,
+                    "elective_course_time_id"  INTEGER
+                    );
+                '''
+        grade = '''
+                    CREATE TABLE "grade" (
+                    "sno"  INTEGER NOT NULL,
+                    "cno"  TEXT NOT NULL,
+                    "cnum"  TEXT,
+                    "grade"  TEXT NOT NULL,
+                    "rank"  TEXT,
+                    "semester"  TEXT,
+                    "flunkcount"  INTEGER DEFAULT 0,
+                    PRIMARY KEY ("sno" ASC, "cno" ASC)
+                    );
+                '''
+        students = '''
+                    CREATE TABLE "students" (
+                    "sno"  INTEGER,
+                    "s_passwd"  TEXT,
+                    "s_name"  TEXT,
+                    "s_sex"  TEXT,
+                    "s_sfz"  TEXT,
+                    "s_birth"  TEXT,
+                    "s_highschool"  TEXT,
+                    "s_addr"  TEXT,
+                    "s_major"  TEXT,
+                    "s_depatment"  TEXT,
+                    "s_class"  TEXT,
+                    "s_nemtgrade"  TEXT,
+                    "s_nemtid"  TEXT,
+                    "s_ethnicity"  TEXT,
+                    "s_recorddate"  TEXT,
+                    "s_politicalstatus"  TEXT,
+                    "s_admissiondate"  INTEGER,
+                    "s_education"  TEXT,
+                    "s_status"  TEXT,
+                    PRIMARY KEY ("sno" ASC)
+                    );
+                 '''
+        syllabus = '''
+                    CREATE TABLE "syllabus" (
+                    "id"  INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 0,
+                    "s_class"  TEXT,
+                    "course_time_id"  INTEGER,
+                    "semester"  TEXT
+                    );
+                '''
+        syllabusUnique = '''
+                    CREATE UNIQUE INDEX "main"."idx_s_class_course_time_id"
+                    ON "syllabus" ("s_class" ASC, "course_time_id" ASC);
+                    '''
+        tableList = [course,course_time,elective,grade,students,syllabus,syllabusUnique]
+
+        for item in tableList:
+            try:
+                self.execute(item)
+            except Exception as e:
+                pass
+                # print('Table create error!')
+        self.commit()  
 
     def close(self):
         """
@@ -86,6 +190,8 @@ def main():
     """
         主函数
     """
+    dbHepler = Sqlite3Helper('database\demodatabase.db')
+    dbHepler.open(check_same_thread=False)
     pass
 
 if __name__ == '__main__':

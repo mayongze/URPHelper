@@ -43,7 +43,8 @@ class Role(object):
     """
     角色操作类
     """
-
+    # 教务URL
+    eduUrl = None
     # requests 的Session对象
     ression = None
     # 学号
@@ -100,7 +101,7 @@ class Role(object):
     # 下载验证码
     def downLoadAutoCode(self):
         img = self.getImage(
-            "http://192.168.4.106/validateCodeAction.do?random=%f" % random.random())
+            "%s/validateCodeAction.do?random=%f" % (Role.eduUrl,random.random()))
         #img = Image.open('11.tiff')
         img = img.convert('L')  # 将彩色图像转化为灰度图
 
@@ -143,9 +144,12 @@ class Role(object):
 
     # 下载角色照片
     def downLoadPhoto(self):
-        r = self.ression.get("http://192.168.4.106/xjInfoAction.do?oper=img")
+        r = self.ression.get("%s/xjInfoAction.do?oper=img" % Role.eduUrl)
 
         imgName = os.path.join('Photo', "%s.jpg" % self.userId)
+        if not os.path.isdir('Photo'):
+            os.mkdir('Photo')
+
         with open(imgName, 'wb') as f:
             f.write(r.content)
             f.flush()
@@ -154,7 +158,7 @@ class Role(object):
     # 获取验证码
     def getAuthCode(self):
         img = self.getImage(
-            "http://192.168.4.106/validateCodeAction.do?random=%f" % random.random())
+            "%s/validateCodeAction.do?random=%f" % (Role.eduUrl,random.random()))
 
         # img = img.save("Wq7T.png","PNG")
         # img = Image.open("bnZr.png")
@@ -185,7 +189,7 @@ class Role(object):
 
     # 获取课程表
     def getCourse(self):
-        r = self.ression.get("http://192.168.4.106/xkAction.do?actionType=6")
+        r = self.ression.get("%s/xkAction.do?actionType=6" % Role.eduUrl)
         html = r.text
         pattern = re.compile(r'<tr class=.*?</tr>', re.S)
 
@@ -252,7 +256,7 @@ class Role(object):
                    'v_yzm': code}
 
         r = self.ression.post(
-            "http://192.168.4.106/loginAction.do", data=payload)
+            "%s/loginAction.do" % Role.eduUrl, data=payload)
 
         autoCode = 0
 
@@ -260,7 +264,7 @@ class Role(object):
             autoCode = autoCode + 1
             payload['v_yzm'] = self.getAuthCode()
             r = self.ression.post(
-                "http://192.168.4.106/loginAction.do", data=payload)
+                "%s/loginAction.do" % Role.eduUrl, data=payload)
 
         # print('AutoCode Err Count:%d' % autoCode)
 
@@ -270,7 +274,7 @@ class Role(object):
     # 获取学籍信息
     def getXJInfo(self):
         r = self.ression.get(
-            'http://192.168.4.106/xjInfoAction.do?oper=xjxx')
+            '%s/xjInfoAction.do?oper=xjxx' % Role.eduUrl)
         pattern = re.compile(
             r'<td class="fieldName" width="180">(.*?):&nbsp.*?">(.*?)</td>', re.S)
         result = re.finditer(pattern, r.text)
@@ -285,7 +289,7 @@ class Role(object):
     # 获取全部成绩
     def getAllGrade(self):
         r = self.ression.get(
-            'http://192.168.4.106/gradeLnAllAction.do?type=ln&oper=sxinfo&lnsxdm=001')
+            '%s/gradeLnAllAction.do?type=ln&oper=sxinfo&lnsxdm=001' % Role.eduUrl)
 
         pattern = re.compile(r'<tr class="[a-zA-Z]+.*?(<td.*?)</tr>', re.S)
         result = re.finditer(pattern, r.text)
@@ -315,7 +319,7 @@ class Role(object):
         2为返回3个返回值 挂科数据（只包括现在还挂的科目）
         '''
         r = self.ression.get(
-            'http://192.168.4.106/gradeLnAllAction.do?type=ln&oper=bjg')
+            '%s/gradeLnAllAction.do?type=ln&oper=bjg' % Role.eduUrl)
         # 先按照及格和不及格划分
         pattern = re.compile(
             r'<table.*?class="titleTop2">(.*?)</table>', re.S)
@@ -375,7 +379,7 @@ class Role(object):
     # 获取本学期成绩
     def getNowSemesterGrade(self):
         r = self.ression.get(
-            "http://192.168.4.106/bxqcjcxAction.do?mytype=bxqcj")
+            "%s/bxqcjcxAction.do?mytype=bxqcj" % Role.eduUrl)
 
         pattern = re.compile(r'<tr class="[a-zA-Z]+.*?(<td.*?)</tr>', re.S)
         result = re.finditer(pattern, r.text)
@@ -555,7 +559,9 @@ class processCrawlURPData (threading.Thread):
             pass
 
 if __name__ == "__main__":
-    dbHepler = DBHelper.Sqlite3Helper('demodatabase.db')
+    # 教务系统URL
+    Role.eduUrl = 'http://192.168.4.106'
+    dbHepler = DBHelper.Sqlite3Helper('database\demodatabase.db')
     dbHepler.open(check_same_thread=False)
     # 从数据库里获得用户密码信息
     # tupleList = URPCrawlerDAO.StudentsGradeDao.getallStudentAccounsInfo(dbHepler)
@@ -571,17 +577,18 @@ if __name__ == "__main__":
     UPList = NET.getAllIdAndPwd()
     for item in UPList:
         UPQueue.put(item)
+        
     # 微信服务端接口操作线程
-    objProcessDataToNETThread = []
-    for i in range(1,2):
-        t = processDataToNET('processNET-%d'%i,roleInfoQueue)
-        t.daemon = True
-        t.start()
-        objProcessDataToNETThread.append(t)
+    # objProcessDataToNETThread = []
+    # for i in range(1,2):
+    #   t = processDataToNET('processNET-%d'%i,roleInfoQueue)
+    #   t.daemon = True
+    #   t.start()
+    #   objProcessDataToNETThread.append(t)
     # 本机sqllite 数据操作
-    # objprocessDataToSqliteThread = processDataToSqlite('processSQLlite',roleInfoSqlliteQueue,dbHepler)
-    # objprocessDataToSqliteThread.daemon = True
-    # objprocessDataToSqliteThread.start()
+    objprocessDataToSqliteThread = processDataToSqlite('processSQLlite',roleInfoSqlliteQueue,dbHepler)
+    objprocessDataToSqliteThread.daemon = True
+    objprocessDataToSqliteThread.start()
     # 爬取教务系统数据线程
     objProcessCrawlURPDataThread = []
     for i in range(1,6):
