@@ -30,6 +30,8 @@ class Sqlite3Helper(object):
         self.conn = sqlite3.connect(self.file_name,check_same_thread=check_same_thread)
         self.cursor = self.conn.cursor()
         self.creatTable()
+        # 关闭写同步
+        # self.execute("PRAGMA synchronous = OFF;")
         return self
 
     def creatTable(self):

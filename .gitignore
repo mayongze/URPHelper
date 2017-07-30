@@ -1,6 +1,8 @@
 /Photo/*.jpg
+/captcha/tmp/*.jpg
 /database/*.db
 /userapiconfig.py
+*.log
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

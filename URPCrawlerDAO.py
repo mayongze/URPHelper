@@ -5,10 +5,9 @@
 # @Link    : https://github.com/mayongze
 # @Version : 1.1.1.20170705
 
-import URPMain
 import re
-import NETinterface as NET
-
+import DBHelper
+import traceback
 
 class MyError(Exception):
 
@@ -36,7 +35,7 @@ class CourseInfoDao(object):
         else:
             if not self.CourseIsExist():
                 # 不存在插入
-                courseList = self._Role._CourseList
+                courseList = self._Role.CourseList
                 # weektype 1 普通 2单周 3 双周 4 普通但是中间停课 5 普通+单周 6 双周+普通
                 for course in courseList:
                     # 判断周次
@@ -95,21 +94,21 @@ class CourseInfoDao(object):
                         tid = flag
 
                     self._DBHelper.execute(
-                        "insert into main.syllabus values(null,'%s',%s,'%s')" % (self._Role.dClass, tid[0], self._Role.semester), commit_at_once=False)
+                        "insert into main.syllabus values(null,'%s',%s,'%s')" % (self._Role.XJInfo["班级"], tid[0], self._Role.semester), commit_at_once=False)
 
     def CourseIsExist(self):
         """
         查询是否存在当前班级课程,存在为True 不存在返回False
         """
-        if self._Role.dClass == None:
+        if self._Role.XJInfo["班级"] == None:
             # 这种操作是否需要用单例模式 需要考虑
-            self._Role.dClass = StudentsInfoDao(
+            self._Role.XJInfo["班级"] = StudentsInfoDao(
                 self._Role, self._DBHelper).getStudentClass()
-            if self._Role.dClass is None:
+            if self._Role.XJInfo["班级"] is None:
                 raise MyError(
                     "数据库班级为None.插入course_time 操作 学号为: %s" % self._Role.userId)
         flag = self._DBHelper.fetchone(
-            "select * from main.syllabus where s_class='%s' and semester='%s'" % (self._Role.dClass, self._Role.semester))
+            "select * from main.syllabus where s_class='%s' and semester='%s'" % (self._Role.XJInfo["班级"], self._Role.semester))
         if flag:
             return True
         else:
@@ -155,14 +154,12 @@ class StudentsInfoDao(object):
         插入学生个人信息
         """
         # 判断学生信息是否在数据库里面
-        _xjinfo = self._Role._XJInfo
+        _xjinfo = self._Role.XJInfo
         # 为None就返回
         if not _xjinfo:
             return
         sInfo = self.getStudentInfoBySno(self._Role.userId)
         if not sInfo:
-            # 只在插入用户的时候才下载照片
-            self._Role.downLoadPhoto()
             self._DBHelper.execute(
                 "insert INTO main.students(sno,s_passwd,s_name,s_sex,s_sfz,s_birth,s_addr,s_major,s_depatment,s_class,s_nemtgrade,s_ethnicity,s_highschool,s_politicalstatus,s_admissiondate,s_education,s_status,s_nemtid,s_recorddate) values (%s,'%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s',%s,'%s','%s','%s',date('now'))" % (_xjinfo['学号'],self._Role.passWd,_xjinfo['姓名'], _xjinfo['性别'], _xjinfo['身份证号'], _xjinfo['出生日期'], _xjinfo['籍贯'], _xjinfo['专业'], _xjinfo['系所'], _xjinfo['班级'], _xjinfo['高考总分'], _xjinfo['民族'], _xjinfo['毕业中学'], _xjinfo['政治面貌'], _xjinfo['入学日期'], _xjinfo['培养层次'], _xjinfo['学籍状态'], _xjinfo['高考考生号']), commit_at_once=False)
         elif sInfo[14] == None:
@@ -225,9 +222,9 @@ class StudentsGradeDao(object):
         # 这里还需要把不及格次数信息统计到数据库
         # 可以在Role 增加函数获取不及格信息(尚不及格,曾不及格)采用字典返回 key为课程号 value为次数
         # 这里进行尚不及格和曾不及格的合并
-        allGrade = self._Role._AllGrade
-        currentFlunkCount = self._Role._CurrentFlunkCount
-        onceFlunkCount = self._Role._OnceFlunkCount
+        allGrade = self._Role.AllGrade
+        currentFlunkCount = self._Role.CurrentFlunkCount
+        onceFlunkCount = self._Role.OnceFlunkCount
         currentFlunkCount.update(onceFlunkCount)
 
         for grade in allGrade:
@@ -248,8 +245,8 @@ class StudentsGradeDao(object):
         更新课程 详细信息
         """
         # notYetGrade 未出
-        nowGrade = self._Role._NowSemesterGrade
-        flunkList = self._Role._NowSemesterFlunkGrade
+        nowGrade = self._Role.NowSemesterGrade
+        flunkList = self._Role.NowSemesterFlunkGrade
         for grade in nowGrade:
             # 本学期可以更新课程最高分 平均分
             # 这里考虑单例类
@@ -296,6 +293,84 @@ class StudentsGradeDao(object):
         strSql = "select grade from main.grade,main.course where grade.cno = course.c_no and course.c_name='%s' and grade.semester = '%s' ORDER BY grade.sno ASC" % (courseName, semester)
         result = self._DBHelper.fetchall(strSql)
         return result
+
+sqlite3Obj = None
+
+def endCommit(dbHepler = None):
+    if not dbHepler:
+        dbHepler = sqlite3Obj
+    dbHepler.commit()
+
+sqliteCount = 0
+def firstEntering(role, dbHepler = None):
+    '''
+    首次录入
+    '''
+    global sqliteCount
+    if not dbHepler:
+        dbHepler = sqlite3Obj
+    sqliteCount = sqliteCount + 1
+    if sqliteCount == 500:
+        sqliteCount = 0
+        dbHepler.commit()
+    StudentsInfoDao(role, dbHepler).insert()
+    # 执行事物提交
+    # dbHepler.commit()
+    CourseInfoDao(role, dbHepler).insert()
+    StudentsGradeDao(role, dbHepler).allGradeInsert()
+    StudentsGradeDao(role, dbHepler).nowSemesterInsert()
+    # 执行事物提交
+    # dbHepler.commit()
+
+def currentEntering(role, dbHepler = None):
+    '''
+    查询本学期成绩 并更新数据库
+    '''
+    if not dbHepler:
+        dbHepler = sqlite3Obj
+    StudentsGradeDao(role, dbHepler).nowSemesterInsert()
+    dbHepler.commit()
+
+
+def updateStudentInfo(role, dbHepler = None):
+    '''
+    更新学生个人信息
+    '''
+    if not dbHepler:
+        dbHepler = sqlite3Obj
+    StudentsInfoDao(role, dbHepler).insert()
+    # 执行事物提交
+    dbHepler.commit()
+
+def process(dataFilePath,logfilename = 'sqliteDataProcess.log'):
+    import log
+    DBlog = log.set_logger(filename = logfilename, isOnlyFile = False)
+    DBlog.debug('sqlite start！')
+    global sqlite3Obj
+    sqlite3Obj = DBHelper.Sqlite3Helper(dataFilePath)
+    sqlite3Obj.open(check_same_thread=False)
+    while True:
+        role,index = yield
+        if isinstance(role, str):
+            return
+        try:   
+            # 跳过账号登陆不成功的
+            if role.ERRORList[0] != 0:
+                # 首次录入
+                firstEntering(role, sqlite3Obj)
+                # 查询本学期成绩 并更新数据库
+                # currentEntering(role, sqlite3Obj)
+                # 更新学生个人信息
+                # updateStudentInfo(role, sqlite3Obj)
+                DBlog.info('%d : %s firstEntering Success!' % (index, role.userId))
+        except Exception as e:
+            DBlog.error('%d : %s firstEntering Exception!\n -- %s' % (index,role.userId, traceback.format_exc()))
+        else:
+            pass
+        finally:
+            pass
+        
+
 
 def main():
     """

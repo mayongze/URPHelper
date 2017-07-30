@@ -8,3 +8,11 @@
 
 # 微信后台接口RUL  示例:  http://www.*****.com/***.php
 URL = ''
+# sqlite 存储相对路径
+SQLITE_PATH = 'database/demodatabase.db'
+# sqlite 日志路径
+SQLITE_LOG_PATH = 'sqliteDataProcess.log'
+
+
+# 爬虫进程数
+SPIDER_PROCESS_NUM = 3
