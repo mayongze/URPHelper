@@ -42,7 +42,6 @@ class URPSpider(object):
     async def login(self, role):
         # 限制同时运行的协数
         look = await self.sem
-
         session = role.session
         userId = role.userId
         passWd = role.passWd
@@ -461,7 +460,7 @@ if __name__ == '__main__':
 
     sprstatus['Spider'] = PROCESS_NUM
     userInfo = NET.getAllIdAndPwd()
-    userInfo = userInfo[:500]
+    # userInfo = userInfo[:20]
     list_data =  list_of_groups(userInfo,PROCESS_NUM)
     p = Pool(processes = PROCESS_NUM + 1)
 

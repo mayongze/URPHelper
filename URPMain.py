@@ -560,6 +560,40 @@ class processCrawlURPData (threading.Thread):
 
 if __name__ == "__main__":
     # 教务系统URL
+    session = requests.session()
+    # 表单
+    payload = {'LS_XH': '148006',
+               'resultPage':'http://192.168.4.106:80/reportFiles/cj/cj_zwcjd.jsp?'
+                }
+
+    r = session.post("http://192.168.4.106/setReportParams",data = payload,stream=True)
+    # print(r.text)
+    m = re.search(r'report1_saveAsText.*?src = "(.*?);',r.text,re.S)
+    url = m.group(1)
+    while True:
+        r = requests.get(url)
+        if r.text.find("SGT") != -1:
+            break
+    print(r.text)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    os._exit(0)
     Role.eduUrl = 'http://192.168.4.106'
     dbHepler = DBHelper.Sqlite3Helper('database\demodatabase.db')
     dbHepler.open(check_same_thread=False)

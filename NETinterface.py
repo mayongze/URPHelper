@@ -33,7 +33,7 @@ def getAllIdAndPwd():
 
 # 评价状态
 async def pushEvaluateInfo(session,userId,flag):
-    async with session.post(URL,params={'aspx':'14','xuehao':userId,'cont':flag}) as r:
+    async with session.get(URL,params={'aspx':'14','xuehao':userId,'cont':flag}) as r:
         return r.status
 
 # 本学期成绩
@@ -49,7 +49,7 @@ async def pushNowSemesterGrade(session,userId,gradeDic):
         cont.append(dic)
     if len(cont) != 0:
         params = URL + "?aspx=13&xuehao={0}&cont={1}".format(userId,str(cont).replace(r"'",r'"'))
-        async with session.post(params) as r:
+        async with session.get(params) as r:
             return r.status
 
 # 不及格成绩
@@ -65,7 +65,7 @@ async def pushFlunkGrade(session,userId,gradeDic):
         cont.append(dic)
     if len(cont) != 0:
         params = URL + "?aspx=11&xuehao={0}&cont={1}".format(userId,str(cont).replace(r"'",r'"'))  
-        async with session.post(params) as r:
+        async with session.get(params) as r:
             return r.status
     else:
         return 0
@@ -83,22 +83,22 @@ async def pushAllGrade(session,userId,gradeDic):
         cont.append(dic)
     if len(cont) != 0:
         params = URL + "?aspx=12&xuehao={0}&cont={1}".format(userId,str(cont).replace(r"'",r'"'))
-        async with session.post(params) as r:
+        async with session.get(params) as r:
             return r.status
 
-
-async def push(session, role, log):
+async def push(session, role, log):  
     try:
         #allGrade = role._AllGrade
         #if allGrade is not None:
         #    pushAllGrade(session,role.userId,allGrade)
-        flunkGrade = role.CurrentFlunkGrade
-        if flunkGrade is not None:
-            status = await pushFlunkGrade(session,role.userId,flunkGrade)
-            if status == 200 or status == 0:
-                log.info(' %s -- 不及格成绩推送成功! status: %s' % (role.userId,status))
-            else:
-                log.info(' %s -- 不及格成绩推送失败! status: %s data= %s' % (role.userId,status,flunkGrade))
+
+        #flunkGrade = role.CurrentFlunkGrade
+        #if flunkGrade is not None:
+        #    status = await pushFlunkGrade(session,role.userId,flunkGrade)
+        #    if status == 200 or status == 0:
+        #        log.info(' %s -- 不及格成绩推送成功! status: %s' % (role.userId,status))
+        #    else:
+        #        log.info(' %s -- 不及格成绩推送失败! status: %s data= %s' % (role.userId,status,flunkGrade))
         nowSemesterGrade = role.NowSemesterGrade
         if nowSemesterGrade is not None:
             status = await pushNowSemesterGrade(session,role.userId,nowSemesterGrade)
@@ -106,14 +106,16 @@ async def push(session, role, log):
                 log.info(' %s -- 本学期成绩推送成功! status: %s' % (role.userId,status))
             else:
                 log.info(' %s -- 本学期成绩推送失败! status: %s data= %s' % (role.userId,status,nowSemesterGrade))
-        evaluateInfo = role.ERRORList
-        status = await pushEvaluateInfo(session,role.userId,evaluateInfo[0])
-        if status == 200 or status == 0:
-            log.info(' %s -- 评教状态推送成功! status: %s' % (role.userId,status))
-        else:
-            log.info(' %s -- 评教状态推送失败! status: %s' % (role.userId,status))
+        #evaluateInfo = role.ERRORList
+        #status = await pushEvaluateInfo(session,role.userId,evaluateInfo[0])
+        #if status == 200 or status == 0:
+        #    log.info(' %s -- 评教状态推送成功! status: %s' % (role.userId,status))
+        #else:
+        #    log.info(' %s -- 评教状态推送失败! status: %s' % (role.userId,status))
     except Exception as e:
         log.error("未知错误 %s" % traceback.format_exc())
+    finally:
+        pass
 
 
 def main():

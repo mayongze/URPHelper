@@ -23,12 +23,18 @@ class MyPipeline(object):
         self.loop = loop
         self.q = q
         self.logPip = _log
-        self.sem = asyncio.Semaphore(21)
-        # limit_per_host=30  limit = 100
-        conn  =  aiohttp.TCPConnector (verify_ssl=False,limit_per_host = 30,use_dns_cache=True,loop = self.loop)
-        self.session = aiohttp.ClientSession(loop = self.loop,connector = conn)
+        # limit_per_host=30  limit = 100`
+        # conn  =  aiohttp.TCPConnector (verify_ssl = False,limit_per_host = 2,use_dns_cache = True,loop = self.loop) connector = conn
+        self.session = aiohttp.ClientSession(loop = self.loop)
         self.NETlog = log.set_logger(filename = "netinterface.log", isOnlyFile = False)
-        self.netstatus = 0
+        # NET最大并行数
+        self.netLimit = 10
+        # NET队列状态
+        self.netStatus = 0
+        # NET正在处理队列状态 
+        self.netProcessNum= 0
+
+        # self.sem = asyncio.Semaphore(3)
 
     # 消费者协程
     def process_localDB(self):
@@ -37,11 +43,17 @@ class MyPipeline(object):
 
     async def process_NET(self,role):
         #if not isinstance(role, str):
-        self.netstatus = self.netstatus + 1
-        # look = await self.sem
-        await NET.push(self.session,role,self.NETlog)
-        # look.__exit__()
-        self.netstatus = self.netstatus - 1
+        self.netStatus = self.netStatus + 1
+        # 限制并发数
+        while self.netProcessNum >= self.netLimit:
+            await asyncio.sleep(0.1)
+
+        self.netProcessNum = self.netProcessNum + 1
+        await NET.push(self.session, role, self.NETlog)
+        self.netProcessNum = self.netProcessNum - 1
+        self.netStatus = self.netStatus - 1
+
+
 
 def start_loop(loop):
     '''线程循环'''
@@ -71,7 +83,7 @@ def main(q , pindex = 1):
             asyncio.run_coroutine_threadsafe(process.process_NET(role), loop)
         except StopIteration :
             cDB.close()
-            logPip.info('数据存储结束! -- %s' % process.netstatus)
+            logPip.info('数据存储结束! -- %s' % process.netStatus)
             break
         except Exception as e:
             logPip.error(traceback.format_exc())
@@ -82,14 +94,14 @@ def main(q , pindex = 1):
 
     while True:
         # NET 上传结束标志
-        if process.netstatus == 0:
+        if process.netStatus == 0:
             process.session.close()
             break
-        logPip.error('等待微信端上传！-- %s' % process.netstatus)
+        logPip.error('等待微信端上传！-- %s' % process.netStatus)
         time.sleep(30)
     loop.stop()
     logPip.error('所有任务结束！')
-    # process.session.close()
+    process.session.close()
 
 if __name__ == '__main__':
     pass
